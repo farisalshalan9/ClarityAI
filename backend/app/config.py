@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "clarityai_super_secret_jwt_key_2026_change_in_production")
     JWT_ALGORITHM: str = "HS256"
