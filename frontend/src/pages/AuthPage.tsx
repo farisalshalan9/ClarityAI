@@ -33,7 +33,18 @@ export const AuthPage: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       console.error('Auth error:', err);
-      const detail = err.response?.data?.detail || 'Authentication failed. Please check your credentials.';
+      let detail = err.response?.data?.detail;
+      if (!detail) {
+        if (!err.response || err.message === 'Network Error') {
+          detail = language === 'ar'
+            ? 'تعذر الاتصال بخادم الـ Backend. يرجى التأكد من تشغيل الخادم وضبط VITE_API_URL في Vercel.'
+            : 'Cannot connect to backend server. If using Vercel, please deploy the backend to Render/Railway and set VITE_API_URL.';
+        } else {
+          detail = language === 'ar'
+            ? 'فشل تسجيل الدخول. يرجى التحقق من صحة البريد الإلكتروني وكلمة المرور، أو النقر على "إنشاء الحساب".'
+            : 'Authentication failed. Please check your credentials or click "Create Account".';
+        }
+      }
       setError(detail);
     } finally {
       setLoading(false);
@@ -53,7 +64,14 @@ export const AuthPage: React.FC = () => {
       }
       navigate('/');
     } catch (err: any) {
-      setError('Could not initialize demo account.');
+      const isNetErr = !err.response || err.message === 'Network Error';
+      setError(
+        isNetErr
+          ? (language === 'ar'
+              ? 'تعذر الاتصال بخادم الـ Backend. تأكد من تشغيل خادم الـ API.'
+              : 'Cannot connect to backend API server. Please ensure backend is running or set VITE_API_URL.')
+          : (err.response?.data?.detail || 'Could not initialize demo account.')
+      );
     } finally {
       setLoading(false);
     }
