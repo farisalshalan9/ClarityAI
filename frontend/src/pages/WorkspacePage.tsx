@@ -29,6 +29,7 @@ export const WorkspacePage: React.FC = () => {
   const [highlightSnippet, setHighlightSnippet] = useState<string | null>(null);
 
   const [isQuickToolsOpen, setIsQuickToolsOpen] = useState<boolean>(false);
+  const [selectedQuickTool, setSelectedQuickTool] = useState<string>('email_draft');
   const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
   const [reanalyzing, setReanalyzing] = useState<boolean>(false);
 
@@ -72,10 +73,9 @@ export const WorkspacePage: React.FC = () => {
     }
   };
 
-  const handleDownloadCalendar = () => {
-    if (!id) return;
-    const url = apiClient.getCalendarDownloadUrl(id);
-    window.open(url, '_blank');
+  const handleSelectQuickTool = (toolId: string) => {
+    setSelectedQuickTool(toolId);
+    setIsQuickToolsOpen(true);
   };
 
   if (loading || !document) {
@@ -97,12 +97,11 @@ export const WorkspacePage: React.FC = () => {
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden">
-      {/* Top Navbar */}
+      {/* Top Navbar with Left-side Separated Quick Actions Dropdown */}
       <Navbar
         currentDoc={document}
         onOpenShare={() => setIsShareOpen(true)}
-        onOpenQuickTools={() => setIsQuickToolsOpen(true)}
-        onDownloadCalendar={handleDownloadCalendar}
+        onSelectQuickTool={handleSelectQuickTool}
       />
 
       {/* Main Split-Screen Workspace */}
@@ -252,6 +251,7 @@ export const WorkspacePage: React.FC = () => {
         documentId={document.id}
         isOpen={isQuickToolsOpen}
         onClose={() => setIsQuickToolsOpen(false)}
+        initialTool={selectedQuickTool}
       />
 
       <ShareModal

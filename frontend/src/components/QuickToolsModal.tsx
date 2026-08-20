@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Wand2, Mail, Lightbulb, ShieldAlert, 
   Table, Copy, Check, Sparkles
@@ -11,19 +11,28 @@ interface QuickToolsModalProps {
   documentId: string;
   isOpen: boolean;
   onClose: () => void;
+  initialTool?: string;
 }
 
 export const QuickToolsModal: React.FC<QuickToolsModalProps> = ({
   documentId,
   isOpen,
   onClose,
+  initialTool = 'email_draft',
 }) => {
   const { t } = useLanguage();
-  const [activeTool, setActiveTool] = useState<string>('email_draft');
+  const [activeTool, setActiveTool] = useState<string>(initialTool);
   const [extraInstructions, setExtraInstructions] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<QuickToolResult | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialTool) {
+      setActiveTool(initialTool);
+      setResult(null);
+    }
+  }, [initialTool, isOpen]);
 
   if (!isOpen) return null;
 
