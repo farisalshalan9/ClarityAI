@@ -29,7 +29,7 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
                 db_user = User(
                     id=sb_user_id,
                     email=email_clean,
-                    hashed_password="[SUPABASE_MANAGED_AUTH]",
+                    hashed_password=get_password_hash(user_in.password),
                     full_name=full_name_clean
                 )
                 db.add(db_user)
@@ -46,9 +46,9 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
                 "user": db_user
             }
         except HTTPException as he:
-            if "already exists" in he.detail.lower():
+            if "already exists" in str(he.detail).lower():
                 raise he
-            # If rate limited or other non-fatal error, fall through to local auth engine
+            # If rate limited or unconfirmed, create local user record
             pass
         except Exception:
             pass
@@ -81,37 +81,41 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
     email_clean = credentials.email.strip().lower()
 
-    # 1. Supabase Auth Route
+    # 1. Try Supabase Auth Route
     if supabase_service.is_enabled():
-        sb_res = supabase_service.login(email=email_clean, password=credentials.password)
-        sb_user_id = sb_res.get("user_id")
-        access_token = sb_res.get("access_token")
-        
-        # Ensure user profile exists in database
-        db_user = db.query(User).filter((User.email == email_clean) | (User.id == sb_user_id)).first()
-        if not db_user:
-            db_user = User(
-                id=sb_user_id,
-                email=email_clean,
-                hashed_password="[SUPABASE_MANAGED_AUTH]",
-                full_name=sb_res.get("full_name") or email_clean.split("@")[0].capitalize()
-            )
-            db.add(db_user)
-            db.commit()
-            db.refresh(db_user)
+        try:
+            sb_res = supabase_service.login(email=email_clean, password=credentials.password)
+            sb_user_id = sb_res.get("user_id")
+            access_token = sb_res.get("access_token")
+            
+            # Ensure user profile exists in database
+            db_user = db.query(User).filter((User.email == email_clean) | (User.id == sb_user_id)).first()
+            if not db_user:
+                db_user = User(
+                    id=sb_user_id,
+                    email=email_clean,
+                    hashed_password=get_password_hash(credentials.password),
+                    full_name=sb_res.get("full_name") or email_clean.split("@")[0].capitalize()
+                )
+                db.add(db_user)
+                db.commit()
+                db.refresh(db_user)
 
-        return {
-            "access_token": access_token or create_access_token(data={"sub": db_user.id, "email": db_user.email}),
-            "token_type": "bearer",
-            "user": db_user
-        }
+            return {
+                "access_token": access_token or create_access_token(data={"sub": db_user.id, "email": db_user.email}),
+                "token_type": "bearer",
+                "user": db_user
+            }
+        except Exception:
+            # Fall through to check local credentials if Supabase login fails
+            pass
 
-    # 2. Self-Hosted / Local Fallback Route
+    # 2. Local Fallback Route
     user = db.query(User).filter(User.email == email_clean).first()
-    if not user or not verify_password(credentials.password, user.hashed_password):
+    if not user or not user.hashed_password or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect email or password. Please verify your credentials.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -123,6 +127,5 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     }
 
 @router.get("/me", response_model=UserResponse)
-def get_current_user_profile(current_user: User = Depends(get_current_user)):
+def get_me(current_user: User = Depends(get_current_user)):
     return current_user
-
