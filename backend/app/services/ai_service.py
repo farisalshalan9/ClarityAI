@@ -454,37 +454,16 @@ Instructions:
         }
 
     def _generate_heuristic_chat(self, doc_info: Dict[str, Any], query: str) -> Dict[str, Any]:
-        page_count = doc_info.get("page_count", 1)
         return {
-            "content": f"Based on the document ({page_count} page(s)), regarding **\"{query}\"**:\n\nThe document details the essential specifications, requirements, and responsibilities. Refer to [Page 1] for initial definitions and [Page {page_count}] for concluding terms and execution protocols.\n\n*Tip: Configure your `GEMINI_API_KEY` in the `.env` file to enable real-time Gemini 3.7 Flash generative answers with deep multimodal grounding.*",
-            "citations": [{"page": 1, "snippet": "Initial definitions and core scope"}]
+            "content": "⚠️ **No connection**\n\nCould not connect to Gemini AI to retrieve a live response. Please check your internet connection or API quota.\n\n*(لا يوجد اتصال: تعذر الاتصال بـ Gemini AI)*",
+            "citations": []
         }
 
     def _generate_heuristic_tool_response(self, tool_type: str, doc_info: Dict[str, Any], extra_instructions: Optional[str]) -> Dict[str, Any]:
-        page_count = doc_info.get("page_count", 1)
-        if tool_type == "email_draft":
-            return {
-                "tool_type": "email_draft",
-                "title": "📧 Drafted Executive Email Response",
-                "result": f"Subject: Follow-up on Document Review & Action Items\n\nDear Team,\n\nI have thoroughly reviewed the uploaded document ({page_count} pages). We have cataloged all key action items, deadlines, and requirements.\n\nOur immediate next steps:\n1. Confirm alignment on the designated milestones.\n2. Address any open compliance and operational items.\n3. Finalize execution by the scheduled deadline.\n\nPlease let me know if you have any questions or require adjustments.\n\nBest regards,\nClarityAI Executive Assistant"
-            }
-        elif tool_type == "eli5":
-            return {
-                "tool_type": "eli5",
-                "title": "💡 Explain Like I'm 5 (Simplified Breakdown)",
-                "result": f"### What is this document about?\nImagine a group project where everyone needs to know their exact job so nobody gets confused.\n\n1. **The Goal**: It sets clear ground rules and explains what needs to be built or agreed upon.\n2. **The Rules**: You have to finish your part on time and follow the agreed guidelines.\n3. **The Next Step**: Check off the items on your checklist and keep an eye on the calendar dates!"
-            }
-        elif tool_type == "risk_audit":
-            return {
-                "tool_type": "risk_audit",
-                "title": "🛡️ Comprehensive Risk & Red Flag Audit",
-                "result": f"### ⚠️ Risk & Vulnerability Analysis\n- **Timeline Slippage (High)**: Delays in initial approvals could impact subsequent milestones.\n- **Ambiguous Obligations (Medium)**: Ensure all deliverables have explicitly defined acceptance criteria.\n- **Sign-off Dependencies (Medium)**: Ensure all required stakeholder signatures are collected before commencing work."
-            }
-        else:
-            return {
-                "tool_type": "table_extract",
-                "title": "📊 Extracted Structured Data & Tables",
-                "result": "| Item | Category | Priority | Status |\n|---|---|---|---|\n| Initial Review | Operations | High | Pending |\n| Compliance Check | Legal | High | In Progress |\n| Kickoff Meeting | Project | Medium | Scheduled |\n| Final Sign-off | Executive | High | Pending |"
-            }
+        return {
+            "tool_type": tool_type,
+            "title": "⚠️ No connection",
+            "result": "Could not connect to Gemini AI to execute this quick action. Please check your internet connection or API status.\n\n*(تعذر الاتصال بـ Gemini AI لتنفيذ هذا الإجراء)*"
+        }
 
 ai_service = AIService()

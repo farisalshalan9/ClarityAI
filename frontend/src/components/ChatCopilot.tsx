@@ -22,6 +22,7 @@ export const ChatCopilot: React.FC<ChatCopilotProps> = ({
   suggestedQuestions = [],
 }) => {
   const { t, language } = useLanguage();
+  const isAr = language === 'ar';
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -145,6 +146,17 @@ export const ChatCopilot: React.FC<ChatCopilotProps> = ({
       setMessages((prev) => [...prev.filter((m) => m.id !== tempUserMsg.id), tempUserMsg, botResponse]);
     } catch (err) {
       console.error('Failed to send message:', err);
+      const fallbackErrorMsg: ChatMessage = {
+        id: `err-${Date.now()}`,
+        document_id: documentId,
+        role: 'assistant',
+        content: isAr
+          ? '⚠️ **لا يوجد اتصال**\n\nتعذر الاتصال بـ Gemini AI. يرجى التحقق من اتصال الإنترنت وحالة الخدمة والمحاولة مجدداً.'
+          : '⚠️ **No connection**\n\nCould not connect to Gemini AI. Please check your internet connection or service status.',
+        citations: [],
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, fallbackErrorMsg]);
     } finally {
       setIsLoading(false);
     }
