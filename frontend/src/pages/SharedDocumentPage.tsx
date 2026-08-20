@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
   FileText, CheckSquare, Calendar, ShieldAlert, 
-  Sparkles, Lock 
+  Lock 
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { PDFViewer } from '../components/PDFViewer';
@@ -12,15 +12,18 @@ import { DeadlinesTimeline } from '../components/DeadlinesTimeline';
 import { RiskMatrix } from '../components/RiskMatrix';
 import { apiClient } from '../api/client';
 import { DocumentDetail } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 export const SharedDocumentPage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
+  const { t } = useLanguage();
 
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'actions' | 'deadlines' | 'risks'>('overview');
   const [activePage, setActivePage] = useState<number>(1);
+  const [highlightSnippet, setHighlightSnippet] = useState<string | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -39,6 +42,21 @@ export const SharedDocumentPage: React.FC = () => {
       setError('This shared document is no longer available or access has been restricted by the owner.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleJumpToPage = (pageNum: number, snippet?: string) => {
+    setActivePage(pageNum);
+    if (snippet) {
+      setHighlightSnippet(snippet);
+      setTimeout(() => setHighlightSnippet(null), 3500);
+    }
+  };
+
+  const handleHoverItem = (pageNum: number, snippet?: string) => {
+    setActivePage(pageNum);
+    if (snippet) {
+      setHighlightSnippet(snippet);
     }
   };
 
@@ -88,6 +106,7 @@ export const SharedDocumentPage: React.FC = () => {
             onPageChange={(p) => setActivePage(p)}
             isShared
             shareToken={token}
+            highlightSnippet={highlightSnippet}
           />
         </div>
 
@@ -104,7 +123,7 @@ export const SharedDocumentPage: React.FC = () => {
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Overview</span>
+              <span>{t('tab.overview')}</span>
             </button>
 
             <button
@@ -116,7 +135,7 @@ export const SharedDocumentPage: React.FC = () => {
               }`}
             >
               <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Tasks ({completedActions}/{totalActions})</span>
+              <span>{t('tab.actions')} ({completedActions}/{totalActions})</span>
             </button>
 
             <button
@@ -128,7 +147,7 @@ export const SharedDocumentPage: React.FC = () => {
               }`}
             >
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
-              <span>Deadlines ({document.deadlines.length})</span>
+              <span>{t('tab.deadlines')} ({document.deadlines.length})</span>
             </button>
 
             <button
@@ -140,7 +159,7 @@ export const SharedDocumentPage: React.FC = () => {
               }`}
             >
               <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-              <span>Risks</span>
+              <span>{t('tab.risks')}</span>
             </button>
           </div>
 
@@ -151,7 +170,8 @@ export const SharedDocumentPage: React.FC = () => {
                 analysis={document.analysis}
                 archetype={document.archetype}
                 pageCount={document.page_count}
-                onJumpToPage={(p) => setActivePage(p)}
+                onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
               />
             )}
 
@@ -160,7 +180,8 @@ export const SharedDocumentPage: React.FC = () => {
                 documentId={document.id}
                 items={document.action_items}
                 onItemsChange={() => {}}
-                onJumpToPage={(p) => setActivePage(p)}
+                onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
                 isReadOnly
               />
             )}
@@ -169,7 +190,8 @@ export const SharedDocumentPage: React.FC = () => {
               <DeadlinesTimeline
                 documentId={document.id}
                 deadlines={document.deadlines}
-                onJumpToPage={(p) => setActivePage(p)}
+                onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
                 isReadOnly
               />
             )}
@@ -177,7 +199,8 @@ export const SharedDocumentPage: React.FC = () => {
             {activeTab === 'risks' && (
               <RiskMatrix
                 items={document.analysis?.risks_and_requirements || []}
-                onJumpToPage={(p) => setActivePage(p)}
+                onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
               />
             )}
           </div>
