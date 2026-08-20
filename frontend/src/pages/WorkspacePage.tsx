@@ -39,6 +39,23 @@ export const WorkspacePage: React.FC = () => {
     }
   }, [id]);
 
+  // Tab navigation keyboard shortcuts (1-5)
+  useEffect(() => {
+    const handleTabShortcuts = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+
+      if (e.key === '1') setActiveTab('overview');
+      else if (e.key === '2') setActiveTab('actions');
+      else if (e.key === '3') setActiveTab('deadlines');
+      else if (e.key === '4') setActiveTab('risks');
+      else if (e.key === '5') setActiveTab('chat');
+    };
+
+    window.addEventListener('keydown', handleTabShortcuts);
+    return () => window.removeEventListener('keydown', handleTabShortcuts);
+  }, []);
+
   const loadDocument = async (docId: string) => {
     setLoading(true);
     try {
@@ -56,7 +73,14 @@ export const WorkspacePage: React.FC = () => {
     setActivePage(pageNum);
     if (snippet) {
       setHighlightSnippet(snippet);
-      setTimeout(() => setHighlightSnippet(null), 4000);
+      setTimeout(() => setHighlightSnippet(null), 3500);
+    }
+  };
+
+  const handleHoverItem = (pageNum: number, snippet?: string) => {
+    setActivePage(pageNum);
+    if (snippet) {
+      setHighlightSnippet(snippet);
     }
   };
 
@@ -129,6 +153,7 @@ export const WorkspacePage: React.FC = () => {
                     ? 'border-brand-500 text-brand-300 bg-slate-900'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
                 }`}
+                title="Overview (Key: 1)"
               >
                 <FileText className="w-3.5 h-3.5" />
                 <span>{t('tab.overview')}</span>
@@ -141,6 +166,7 @@ export const WorkspacePage: React.FC = () => {
                     ? 'border-brand-500 text-brand-300 bg-slate-900'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
                 }`}
+                title="Actions (Key: 2)"
               >
                 <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
                 <span>{t('tab.actions')} ({completedActions}/{totalActions})</span>
@@ -153,6 +179,7 @@ export const WorkspacePage: React.FC = () => {
                     ? 'border-brand-500 text-brand-300 bg-slate-900'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
                 }`}
+                title="Deadlines (Key: 3)"
               >
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
                 <span>{t('tab.deadlines')} ({document.deadlines.length})</span>
@@ -165,6 +192,7 @@ export const WorkspacePage: React.FC = () => {
                     ? 'border-brand-500 text-brand-300 bg-slate-900'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
                 }`}
+                title="Risks (Key: 4)"
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
                 <span>{t('tab.risks')}</span>
@@ -177,6 +205,7 @@ export const WorkspacePage: React.FC = () => {
                     ? 'border-brand-500 text-brand-300 bg-slate-900'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
                 }`}
+                title="Copilot (Key: 5)"
               >
                 <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
                 <span>{t('tab.chat')}</span>
@@ -201,6 +230,7 @@ export const WorkspacePage: React.FC = () => {
                 archetype={document.archetype}
                 pageCount={document.page_count}
                 onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
                 onNavigateTab={(tab) => setActiveTab(tab as any)}
               />
             )}
@@ -213,6 +243,7 @@ export const WorkspacePage: React.FC = () => {
                   setDocument((prev) => (prev ? { ...prev, action_items: newItems } : null))
                 }
                 onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
                 onReanalyze={handleReanalyze}
                 reanalyzing={reanalyzing}
               />
@@ -223,6 +254,7 @@ export const WorkspacePage: React.FC = () => {
                 documentId={document.id}
                 deadlines={document.deadlines}
                 onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
               />
             )}
 
@@ -230,6 +262,7 @@ export const WorkspacePage: React.FC = () => {
               <RiskMatrix
                 items={document.analysis?.risks_and_requirements || []}
                 onJumpToPage={handleJumpToPage}
+                onHoverItem={handleHoverItem}
               />
             )}
 

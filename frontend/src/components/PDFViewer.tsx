@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, 
   RotateCw, LayoutGrid, FileText, 
-  ExternalLink, Sparkles, 
-  Eye
+  ExternalLink, Sparkles, Eye, Maximize2
 } from 'lucide-react';
 import { apiClient, api } from '../api/client';
 import { useLanguage } from '../context/LanguageContext';
@@ -35,9 +34,43 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   const [imageSrc, setImageSrc] = useState<string>('');
   const [imageLoading, setImageLoading] = useState<boolean>(true);
   const [imageError, setImageError] = useState<boolean>(false);
+  const [showSpotlight, setShowSpotlight] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const rawPdfUrl = apiClient.getRawPdfUrl(documentId, isShared, shareToken);
+
+  // Trigger glowing spotlight on new snippet highlight
+  useEffect(() => {
+    if (highlightSnippet) {
+      setShowSpotlight(true);
+      const timer = setTimeout(() => setShowSpotlight(false), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightSnippet, activePage]);
+
+  // Keyboard Shortcuts (QoL)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when typing in text inputs or textareas
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+
+      if (e.key === 'ArrowLeft') {
+        if (activePage > 1) onPageChange(activePage - 1);
+      } else if (e.key === 'ArrowRight') {
+        if (activePage < pageCount) onPageChange(activePage + 1);
+      } else if (e.key === '+' || e.key === '=') {
+        setZoom((prev) => Math.min(prev + 0.2, 2.5));
+      } else if (e.key === '-') {
+        setZoom((prev) => Math.max(prev - 0.2, 0.6));
+      } else if (e.key === '0') {
+        setZoom(1.0);
+        setRotation(0);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activePage, pageCount, onPageChange]);
 
   // Authenticated Page Image Fetcher
   useEffect(() => {
@@ -93,9 +126,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 2.5));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.6));
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
+  const handleResetView = () => {
+    setZoom(1.0);
+    setRotation(0);
+  };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative">
+    <div className="flex flex-col h-full bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl relative group/viewer">
       {/* Top Toolbar */}
       <div className="h-12 border-b border-slate-800 bg-slate-950/70 backdrop-blur px-3 flex items-center justify-between text-xs text-slate-300">
         {/* Left: Page Navigation */}
@@ -115,8 +152,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           <button
             onClick={handlePrevPage}
             disabled={activePage <= 1}
-            className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300"
-            title={t('pdf.prevPage')}
+            className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300 transition-colors"
+            title={`${t('pdf.prevPage')} (←)`}
           >
             <ChevronLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
@@ -131,7 +168,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
                 const val = parseInt(e.target.value);
                 if (val >= 1 && val <= pageCount) onPageChange(val);
               }}
-              className="w-10 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center text-white focus:outline-none focus:border-brand-500"
+              className="w-10 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center text-white focus:outline-none focus:border-brand-500 font-bold"
             />
             <span className="text-slate-500">/ {pageCount}</span>
           </div>
@@ -139,8 +176,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           <button
             onClick={handleNextPage}
             disabled={activePage >= pageCount}
-            className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300"
-            title={t('pdf.nextPage')}
+            className="p-1.5 rounded-lg hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent text-slate-300 transition-colors"
+            title={`${t('pdf.nextPage')} (→)`}
           >
             <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
@@ -148,9 +185,9 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
 
         {/* Center: Jump Citation Alert */}
         {highlightSnippet && (
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 text-[11px] animate-pulse">
-            <Sparkles className="w-3 h-3" />
-            <span>{t('exec.jumpCitation')} {activePage}</span>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/40 text-xs font-semibold shadow-lg shadow-brand-500/10 animate-bounce duration-1000">
+            <Sparkles className="w-3.5 h-3.5 text-brand-400 animate-spin" />
+            <span className="truncate max-w-[200px]">{highlightSnippet}</span>
           </div>
         )}
 
@@ -187,17 +224,21 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
               <button
                 onClick={handleZoomOut}
                 className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-                title={t('pdf.zoomOut')}
+                title={`${t('pdf.zoomOut')} (-)`}
               >
                 <ZoomOut className="w-4 h-4" />
               </button>
-              <span className="font-mono text-[11px] text-slate-400 w-10 text-center">
+              <button
+                onClick={handleResetView}
+                className="font-mono text-[11px] text-slate-400 hover:text-brand-300 w-11 text-center py-1 rounded hover:bg-slate-800 transition-colors font-semibold"
+                title="Reset Zoom (0)"
+              >
                 {Math.round(zoom * 100)}%
-              </span>
+              </button>
               <button
                 onClick={handleZoomIn}
                 className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-                title={t('pdf.zoomIn')}
+                title={`${t('pdf.zoomIn')} (+)`}
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
@@ -230,7 +271,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
       <div className="flex-1 flex overflow-hidden relative">
         {/* Thumbnails Sidebar Drawer */}
         {showThumbnails && (
-          <div className="w-44 border-r rtl:border-r-0 rtl:border-l border-slate-800 bg-slate-950/90 p-3 overflow-y-auto flex flex-col gap-3 z-10">
+          <div className="w-44 border-r rtl:border-r-0 rtl:border-l border-slate-800 bg-slate-950/90 p-3 overflow-y-auto flex flex-col gap-3 z-10 animate-in slide-in-from-left duration-200">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-1">
               {t('ws.pages')} ({pageCount})
             </span>
@@ -281,7 +322,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
             className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center bg-slate-950/40 relative"
           >
             {imageLoading && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/60 z-10">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/60 z-10 backdrop-blur-sm">
                 <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-2" />
                 <span className="text-xs text-slate-400 font-medium">{t('pdf.rendering')}</span>
               </div>
@@ -316,7 +357,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
             ) : (
               imageSrc && (
                 <div
-                  className="transition-transform duration-150 ease-out shadow-2xl rounded-lg overflow-hidden border border-slate-800 bg-white"
+                  className="relative transition-transform duration-200 ease-out shadow-2xl rounded-xl overflow-hidden border border-slate-700/80 bg-white"
                   style={{
                     transform: `scale(${zoom}) rotate(${rotation}deg)`,
                     transformOrigin: 'center center',
@@ -332,6 +373,19 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
                       setImageError(true);
                     }}
                   />
+
+                  {/* Animated Glowing Spotlight Overlay on Hover/Jump */}
+                  {showSpotlight && (
+                    <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-center items-center">
+                      <div className="absolute inset-0 bg-brand-500/10 animate-pulse duration-700 border-4 border-brand-400/80 rounded-xl" />
+                      <div className="w-full h-1/3 bg-gradient-to-b from-amber-400/25 via-amber-300/35 to-transparent backdrop-blur-[1px] border-y-2 border-amber-400 animate-in fade-in zoom-in duration-300 shadow-2xl flex items-center justify-center">
+                        <div className="px-3 py-1 rounded-full bg-slate-950/90 border border-amber-400 text-amber-300 text-xs font-bold shadow-2xl flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                          <span>{highlightSnippet || `Page ${activePage}`}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             )}

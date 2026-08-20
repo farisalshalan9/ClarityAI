@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   CheckSquare, Square, Plus, Trash2, Tag, 
-  User as UserIcon, Sparkles, Filter, CheckCircle2, RefreshCw 
+  User as UserIcon, Sparkles, Filter, CheckCircle2, RefreshCw, Eye, Copy, Check 
 } from 'lucide-react';
 import { ActionItem } from '../types';
 import { apiClient } from '../api/client';
@@ -11,7 +11,8 @@ interface ActionChecklistProps {
   documentId: string;
   items: ActionItem[];
   onItemsChange: (items: ActionItem[]) => void;
-  onJumpToPage: (page: number) => void;
+  onJumpToPage: (page: number, snippet?: string) => void;
+  onHoverItem?: (page: number, snippet?: string) => void;
   isReadOnly?: boolean;
   onReanalyze?: () => void;
   reanalyzing?: boolean;
@@ -22,17 +23,19 @@ export const ActionChecklist: React.FC<ActionChecklistProps> = ({
   items,
   onItemsChange,
   onJumpToPage,
+  onHoverItem,
   isReadOnly = false,
   onReanalyze,
   reanalyzing = false,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [filterPriority, setFilterPriority] = useState<string>('All');
   const [newTaskText, setNewTaskText] = useState<string>('');
   const [newTaskPriority, setNewTaskPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
   const [newTaskCategory, setNewTaskCategory] = useState<string>('General');
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [loadingActionId, setLoadingActionId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const completedCount = items.filter((i) => i.is_completed).length;
   const progressPercent = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
@@ -66,6 +69,13 @@ export const ActionChecklist: React.FC<ActionChecklistProps> = ({
     } catch (err) {
       console.error('Failed to delete action item:', err);
     }
+  };
+
+  const handleCopyTask = (taskText: string, id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(taskText);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1800);
   };
 
   const handleAddTask = async (e: React.FormEvent) => {
@@ -159,28 +169,34 @@ export const ActionChecklist: React.FC<ActionChecklistProps> = ({
         </div>
 
         {/* Priority Filter Chips */}
-        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-800/60">
-          <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
-            <Filter className="w-3 h-3" />
+        <div className="flex items-center justify-between gap-1.5 mt-3 pt-3 border-t border-slate-800/60 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-400 font-medium mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3" />
+            </span>
+            {[
+              { key: 'All', label: t('act.filterAll') },
+              { key: 'High', label: t('act.priorityHigh') },
+              { key: 'Medium', label: t('act.priorityMedium') },
+              { key: 'Low', label: t('act.priorityLow') },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setFilterPriority(key)}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+                  filterPriority === key
+                    ? 'bg-slate-700 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <span className="text-[10px] text-slate-500 hidden sm:inline">
+            {language === 'ar' ? '💡 مرر المؤشر لمعاينة الصفحة فوراً' : '💡 Hover over any task to jump to page'}
           </span>
-          {[
-            { key: 'All', label: t('act.filterAll') },
-            { key: 'High', label: t('act.priorityHigh') },
-            { key: 'Medium', label: t('act.priorityMedium') },
-            { key: 'Low', label: t('act.priorityLow') },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilterPriority(key)}
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
-                filterPriority === key
-                  ? 'bg-slate-700 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -246,10 +262,13 @@ export const ActionChecklist: React.FC<ActionChecklistProps> = ({
             <div
               key={item.id}
               onClick={() => handleToggleComplete(item)}
+              onMouseEnter={() => {
+                if (item.page_number) onHoverItem?.(item.page_number, item.task.slice(0, 35));
+              }}
               className={`group flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
                 item.is_completed
                   ? 'bg-slate-950/40 border-slate-800/40 opacity-60'
-                  : 'glass-card-interactive border-slate-800/80 hover:border-slate-700'
+                  : 'glass-card-interactive border-slate-800/80 hover:border-brand-500/50 hover:bg-slate-900/90'
               }`}
             >
               {/* Checkbox */}
@@ -303,29 +322,39 @@ export const ActionChecklist: React.FC<ActionChecklistProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onJumpToPage(item.page_number!);
+                        onJumpToPage(item.page_number!, item.task.slice(0, 35));
                       }}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 flex items-center gap-1 transition-colors"
+                      className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-brand-500/15 hover:bg-brand-500/30 text-brand-300 border border-brand-500/30 flex items-center gap-1 transition-all shadow-sm group/btn"
                       title={`${t('exec.jumpCitation')} ${item.page_number}`}
                     >
-                      <Sparkles className="w-2.5 h-2.5" />
+                      <Eye className="w-2.5 h-2.5 text-brand-400 group-hover/btn:scale-110 transition-transform" />
                       {t('ws.pages')} {item.page_number}
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Delete Button */}
-              {!isReadOnly && (
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   type="button"
-                  onClick={(e) => handleDeleteItem(item.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-rose-400 transition-opacity"
-                  title="Delete Task"
+                  onClick={(e) => handleCopyTask(item.task, item.id, e)}
+                  className="p-1 text-slate-500 hover:text-slate-200 transition-colors"
+                  title="Copy Task"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
-              )}
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteItem(item.id, e)}
+                    className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                    title="Delete Task"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}
